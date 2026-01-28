@@ -1,0 +1,13 @@
+{
+  "name": "auth-module",
+  "version": "1.0.0",
+  "description": "Authentication and Authorization Module",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
