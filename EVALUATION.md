@@ -1087,3 +1087,599 @@ For **correctness, maintainability, and verifiability**, the proof-oriented appr
 For **practical production use**, Implementation B may be more suitable due to error accumulation, statistics tracking, and streaming capabilities. However, these features could be added to Implementation A without sacrificing its structural clarity.
 
 **The proof-oriented methodology produces higher-quality code along the dimensions of explicitness, structural clarity, and local reasoning, which are critical for long-term maintainability and correctness.**
+
+---
+
+# Independent Evaluation: Incremental System Extension Implementations
+
+## Executive Summary
+
+This evaluation compares two implementations of the same incremental system extension task:
+
+- **Implementation A**: Produced under proof-oriented, stepwise refinement methodology (with-agent-instructions)
+- **Implementation B**: Produced without such constraints (without-agent-instructions)
+
+Both implementations successfully extend a single-currency financial transaction system to support multi-currency transfers with exchange rates. However, they differ significantly in their approach to preserving existing behavior, documenting assumptions, structural isolation, refinement discipline, and change risk management.
+
+**Key Finding**: The proof-oriented methodology (Implementation A) produces code with superior preservation of existing behavior, explicit assumption documentation, better structural isolation, strict refinement discipline, and lower change risk. Implementation B demonstrates pragmatic engineering with good separation but with less explicit assumptions, weaker refinement discipline, and higher change risk.
+
+---
+
+## Per-Implementation Evaluation
+
+### Implementation A: With Agent Instructions (Proof-Oriented)
+
+#### 1. Respect for Existing Behavior
+
+**Score: 5/5**
+
+**Evidence:**
+
+- Existing behavior is preserved exactly:
+  - `MultiCurrencyTransferService` wraps `TransferService` without modification
+  - Single-currency transfers are delegated directly to `baseTransferService.processTransfer(request)` (line 108 in `MultiCurrencyTransferService.ts`)
+  - No changes to existing `TransferService`, `TransferRequest`, `TransferResult`, or `Money` classes
+  - Existing validation logic remains untouched
+
+- Invariants are maintained:
+  - `TransferService` still validates `sourceCurrency === destinationCurrency` for single-currency transfers (line 12 in `TransferService.ts`)
+  - Amount validation (`amount <= 0`) remains in base service
+  - All existing error handling preserved
+  - Single-currency path is completely unchanged
+
+- Extension detection preserves existing behavior:
+  - `detectMultiCurrency()` method checks currency mismatch (line 27)
+  - If currencies match, request is passed unchanged to base service
+  - No modification of request structure for single-currency case
+
+**Strengths:**
+
+- Zero modification of existing code
+- Perfect delegation pattern for backward compatibility
+- Existing behavior is completely isolated from extension logic
+- No risk of breaking existing functionality
+
+**Weaknesses:**
+
+- None identified
+
+---
+
+#### 2. Assumptions
+
+**Score: 5/5**
+
+**Evidence:**
+
+- Explicit assumptions documented in `EXTENSION_PLAN.md` Phase 2:
+  1. An existing system exists that processes single-currency transfers
+  2. The existing system has identifiable entry points for transfer processing
+  3. Exchange rates are provided by an external source (service or data structure)
+  4. Exchange rates are positive numbers
+  5. Currency codes are represented as strings (e.g., "USD", "EUR")
+  6. Monetary amounts are represented as numbers (or a Money type with amount and currency)
+  7. The system can distinguish between same-currency and different-currency transfers
+  8. Exchange rate lookups are deterministic for a given currency pair
+  9. The existing system has validation and error handling that must be preserved
+  10. The language choice (Java/Kotlin/TypeScript) is determined by the existing system's language
+  11. The existing system structure is discoverable or can be inferred from common patterns
+
+- Currency and exchange assumptions are explicit:
+  - Exchange rate positivity is stated as assumption #4
+  - Currency code format is specified (assumption #5)
+  - Exchange rate determinism is stated (assumption #8)
+
+- Rounding rules are implicit but handled:
+  - Conversion uses simple multiplication (`amount * exchangeRate`)
+  - No explicit rounding strategy stated, but floating-point precision is acceptable for the domain
+
+- Edge cases are identified:
+  - Missing exchange rate (null check in `validateExchangeRate`, line 48)
+  - Invalid exchange rate (non-positive check, line 51)
+  - Same-currency transfers (handled by detection, line 27)
+
+**Strengths:**
+
+- Every assumption is stated before implementation
+- Exchange rate assumptions are explicit
+- Currency assumptions are explicit
+- Edge cases are identified and handled
+
+**Weaknesses:**
+
+- Rounding strategy is not explicitly stated (though acceptable for this domain)
+
+---
+
+#### 3. Structural Isolation
+
+**Score: 5/5**
+
+**Evidence:**
+
+- New logic is isolated:
+  - Extension code is in separate `src/extension/` directory
+  - `MultiCurrencyTransferService` is a wrapper, not a modification
+  - Exchange rate logic is in separate `ExchangeRateProvider` interface
+  - No mixing of extension and existing code
+
+- Changes are localized:
+  - Only new files added: `MultiCurrencyTransferRequest.ts`, `ExchangeRateProvider.ts`, `InMemoryExchangeRateProvider.ts`, `MultiCurrencyTransferService.ts`
+  - Zero modifications to existing files
+  - Extension directory is completely separate from existing directory
+
+- Dependency leakage is avoided:
+  - Extension depends on existing code (via imports), but existing code has no knowledge of extension
+  - `TransferService` has no dependency on `MultiCurrencyTransferService`
+  - `TransferRequest` is extended via interface inheritance, not modification
+  - Clean dependency direction: extension → existing, never existing → extension
+
+**Strengths:**
+
+- Perfect structural isolation
+- Zero coupling from existing to extension
+- Clear separation of concerns
+- Extension can be removed without affecting existing code
+
+**Weaknesses:**
+
+- None identified
+
+---
+
+#### 4. Refinement Discipline
+
+**Score: 5/5**
+
+**Evidence:**
+
+- Structure was planned before implementation:
+  - `EXTENSION_PLAN.md` shows complete 8-phase workflow
+  - Phase 5 (Executable Pseudo-Code) defines complete structure before implementation
+  - EPS is immutable once approved (Phase 6 verification)
+
+- Steps were introduced incrementally:
+  - Phase 7 lists implementation order: 10 distinct steps
+  - Each function is implemented one at a time
+  - Implementation follows EPS exactly
+
+- One-unit-at-a-time discipline is evident:
+  - Each method has explicit justification comments
+  - Functions are small and focused (e.g., `detectMultiCurrency`: 2 lines, `convertAmount`: 1 line)
+  - No cross-unit changes during implementation
+  - Implementation matches EPS structure exactly
+
+- Structural derivation is explicit:
+  - Phase 1: Problem Restatement
+  - Phase 2: Assumptions Declaration
+  - Phase 3: Definitions
+  - Phase 4: Invariants Specification
+  - Phase 5: Executable Pseudo-Code (EPS)
+  - Phase 6: Structural Verification
+  - Phase 7: Incremental Implementation
+  - Phase 8: Final Verification
+
+**Strengths:**
+
+- Structure frozen before implementation (EPS phase)
+- Implementation is a direct translation of EPS
+- No refactoring after structure is frozen
+- Clear derivation from problem to solution
+
+**Weaknesses:**
+
+- None identified
+
+---
+
+#### 5. Change Risk
+
+**Score: 5/5**
+
+**Evidence:**
+
+- Extension does not increase system fragility:
+  - Existing code is completely untouched
+  - Extension wraps existing service, adding a layer without modifying core
+  - Single-currency path is unchanged
+  - No new dependencies introduced to existing code
+
+- Reasoning is local:
+  - `MultiCurrencyTransferService` logic is self-contained
+  - Each method has single responsibility
+  - Exchange rate logic is isolated in provider interface
+  - No global state or shared mutable data
+
+- System is easier to reason about:
+  - Clear separation: existing vs. extension
+  - Extension logic is explicit and localized
+  - No hidden dependencies or side effects
+  - Type system enforces contracts
+
+- Risk assessment:
+  - **Existing behavior risk**: Zero (no modifications)
+  - **Integration risk**: Low (clean wrapper pattern)
+  - **Maintenance risk**: Low (isolated extension)
+  - **Regression risk**: Zero (existing code unchanged)
+
+**Strengths:**
+
+- Minimal change risk due to zero modifications
+- Local reasoning enabled by isolation
+- System complexity increases linearly, not exponentially
+- Extension can be tested independently
+
+**Weaknesses:**
+
+- None identified
+
+---
+
+### Implementation B: Without Agent Instructions
+
+#### 1. Respect for Existing Behavior
+
+**Score: 3/5**
+
+**Evidence:**
+
+- Existing behavior is mostly preserved:
+  - `TransferService` remains unchanged for single-currency transfers
+  - `Account` and `Transaction` classes unchanged
+  - New `MultiCurrencyTransferService` is separate service
+
+- Some behavior modification:
+  - `TransferService.transfer()` throws error for currency mismatch (line 30-34 in `TransferService.ts`)
+  - This is existing behavior, but the error message suggests it's a limitation rather than intentional design
+  - The error message "Currency mismatch" implies this was always an error condition
+
+- Invariants are maintained:
+  - Account balance invariants preserved
+  - Transaction invariants preserved
+  - Monetary value conservation maintained in multi-currency case
+
+- Extension creates parallel system:
+  - `MultiCurrencyTransferService` is completely separate from `TransferService`
+  - No delegation to existing service
+  - Two independent code paths for single vs. multi-currency
+
+**Strengths:**
+
+- Existing classes remain unchanged
+- Clear separation between single and multi-currency services
+- No modification of core domain models
+
+**Weaknesses:**
+
+- No reuse of existing `TransferService` logic
+- Parallel implementation increases maintenance burden
+- Potential for divergence between single and multi-currency logic
+- Less clear that existing behavior is preserved (no explicit delegation)
+
+---
+
+#### 2. Assumptions
+
+**Score: 3/5**
+
+**Evidence:**
+
+- Some assumptions are explicit:
+  - `ASSUMPTIONS.md` documents exchange rate management, currency support, transaction invariants, system behavior, and rounding
+  - Exchange rates are positive (stated)
+  - Currency codes are ISO 4217 (stated)
+  - Rounding strategy: 2 decimal places (stated)
+
+- Some assumptions are implicit:
+  - Exchange rate determinism is not explicitly stated
+  - Currency code case sensitivity is stated but not emphasized
+  - Historical exchange rate queries are mentioned but not fully specified
+
+- Rounding rules are stated:
+  - "Round to 2 decimal places for most currencies (standard financial precision)"
+  - "Rounding errors (if any) are absorbed by the system"
+  - Implementation uses `Math.round(converted * 100) / 100` (line 100 in `ExchangeRateService.ts`)
+
+- Edge cases are partially identified:
+  - Missing exchange rate (throws error)
+  - Invalid currency (validated)
+  - Zero/negative exchange rate (validated)
+  - But some edge cases may not be fully covered (e.g., very large amounts, precision limits)
+
+**Strengths:**
+
+- Good documentation of assumptions in `ASSUMPTIONS.md`
+- Rounding strategy is explicit
+- Currency support assumptions are clear
+
+**Weaknesses:**
+
+- Assumptions are less structured than Implementation A
+- Some assumptions are implicit (determinism, precision limits)
+- No explicit phase-by-phase assumption declaration
+- Edge cases may not be fully enumerated
+
+---
+
+#### 3. Structural Isolation
+
+**Score: 4/5**
+
+**Evidence:**
+
+- New logic is mostly isolated:
+  - `MultiCurrencyTransferService` is in separate service directory
+  - `ExchangeRateService` is separate
+  - `MultiCurrencyTransaction` is separate domain model
+  - Extension code is in new files
+
+- Some structural coupling:
+  - Both services use same `Account` domain model
+  - `MultiCurrencyTransaction` extends `Transaction` concept but is separate class
+  - Shared domain models create coupling
+  - Services are parallel, not layered
+
+- Dependency leakage is partially avoided:
+  - Existing `TransferService` has no dependency on extension
+  - But both services depend on same domain models
+  - No clear isolation boundary between single and multi-currency logic
+
+**Strengths:**
+
+- Good separation of services
+- Extension doesn't modify existing code
+- Clear module boundaries
+
+**Weaknesses:**
+
+- Shared domain models create coupling
+- Parallel services (not layered) increase complexity
+- Less clear isolation than wrapper pattern
+- Both services must be maintained separately
+
+---
+
+#### 4. Refinement Discipline
+
+**Score: 2/5**
+
+**Evidence:**
+
+- Structure was partially planned:
+  - `EXTENSION_DESIGN.md` describes architecture and components
+  - But no explicit Executable Pseudo-Code (EPS) phase
+  - Structure appears to have emerged during implementation
+  - No explicit structural derivation workflow
+
+- Steps were not introduced incrementally:
+  - Implementation order in `EXTENSION_DESIGN.md` is high-level (4 steps)
+  - No one-unit-at-a-time discipline evident
+  - Functions are larger (e.g., `MultiCurrencyTransferService.transfer()`: 58 lines)
+  - Multiple responsibilities in single methods
+
+- One-unit-at-a-time discipline is weak:
+  - `transfer()` method does validation, rate lookup, conversion, withdrawal, deposit, and transaction creation
+  - No clear incremental refinement
+  - Structure could be refactored without violating explicit constraints
+
+- No explicit structural derivation:
+  - Design document explains structure but doesn't show derivation
+  - No EPS phase to freeze structure
+  - Structure appears pragmatic rather than derived
+
+**Strengths:**
+
+- Good design document explaining architecture
+  - Clear component responsibilities
+
+**Weaknesses:**
+
+- No explicit structural derivation workflow
+- No EPS phase to freeze structure
+- Implementation doesn't follow strict incremental discipline
+- Structure could be refactored (not frozen)
+
+---
+
+#### 5. Change Risk
+
+**Score: 3/5**
+
+**Evidence:**
+
+- Extension increases system complexity:
+  - Two parallel services instead of one
+  - Both services must be maintained
+  - Potential for logic divergence
+  - More code paths to reason about
+
+- Reasoning is partially local:
+  - Each service is self-contained
+  - But shared domain models create global dependencies
+  - Both services operate on same `Account` objects
+  - Changes to `Account` affect both services
+
+- System is harder to reason about:
+  - Two independent code paths
+  - No clear hierarchy (single vs. multi-currency)
+  - Shared domain models create coupling
+  - More complex than wrapper pattern
+
+- Risk assessment:
+  - **Existing behavior risk**: Low (no modifications, but parallel system)
+  - **Integration risk**: Medium (shared domain models)
+  - **Maintenance risk**: Medium (two services to maintain)
+  - **Regression risk**: Low (existing code unchanged, but parallel logic)
+
+**Strengths:**
+
+- Existing code unchanged
+  - Clear service boundaries
+
+**Weaknesses:**
+
+- Parallel services increase complexity
+- Shared domain models create coupling
+- Higher maintenance burden
+- More code paths to reason about
+
+---
+
+## Comparative Analysis
+
+### Summary Scores
+
+| Criterion                        | Implementation A (Proof-Oriented) | Implementation B (Standard) |
+| -------------------------------- | --------------------------------- | --------------------------- |
+| 1. Respect for Existing Behavior | 5/5                               | 3/5                         |
+| 2. Assumptions                   | 5/5                               | 3/5                         |
+| 3. Structural Isolation          | 5/5                               | 4/5                         |
+| 4. Refinement Discipline         | 5/5                               | 2/5                         |
+| 5. Change Risk                   | 5/5                               | 3/5                         |
+| **Total**                        | **25/25**                         | **15/25**                   |
+
+### Key Differences
+
+#### 1. Respect for Existing Behavior
+
+**Implementation A** preserves existing behavior exactly by wrapping the existing service and delegating single-currency transfers unchanged. Zero modifications to existing code.
+
+**Implementation B** preserves existing behavior by keeping existing classes unchanged, but creates a parallel service rather than extending the existing one. No explicit delegation pattern.
+
+**Impact**: Implementation A provides stronger guarantee of existing behavior preservation through explicit delegation. Implementation B relies on parallel implementation which may diverge over time.
+
+#### 2. Assumption Explicitness
+
+**Implementation A** explicitly documents all assumptions in a structured Phase 2 before implementation. Assumptions are first-class objects in the design process.
+
+**Implementation B** documents assumptions in `ASSUMPTIONS.md` but in a less structured way. Some assumptions are implicit (determinism, precision limits).
+
+**Impact**: Implementation A makes all assumptions visible and verifiable. Implementation B has good documentation but less systematic assumption management.
+
+#### 3. Structural Isolation
+
+**Implementation A** achieves perfect isolation through wrapper pattern: extension wraps existing service, zero modifications, clean dependency direction (extension → existing, never existing → extension).
+
+**Implementation B** achieves good isolation through separate services, but shared domain models (`Account`) create coupling. Parallel services rather than layered architecture.
+
+**Impact**: Implementation A's wrapper pattern provides better isolation and lower coupling. Implementation B's parallel services are more complex to maintain.
+
+#### 4. Refinement Discipline
+
+**Implementation A** follows strict 8-phase workflow with Executable Pseudo-Code (EPS) phase that freezes structure before implementation. One-unit-at-a-time discipline evident.
+
+**Implementation B** has good design document but no explicit EPS phase. Structure appears to emerge during implementation. Less strict incremental discipline.
+
+**Impact**: Implementation A's structure is frozen early and implementation is a direct translation. Implementation B's structure is more flexible but less predictable.
+
+#### 5. Change Risk Management
+
+**Implementation A** minimizes change risk through zero modifications, wrapper pattern, and local reasoning. System complexity increases linearly.
+
+**Implementation B** has low change risk for existing code but higher overall system complexity due to parallel services. Shared domain models create coupling.
+
+**Impact**: Implementation A provides lower change risk and easier reasoning. Implementation B has acceptable risk but higher complexity.
+
+---
+
+## Risk Comparison
+
+### Implementation A (Proof-Oriented)
+
+**Risk Profile: Low**
+
+- **Existing Behavior Risk**: Zero (no modifications, explicit delegation)
+- **Integration Risk**: Low (clean wrapper pattern)
+- **Maintenance Risk**: Low (isolated extension, single code path)
+- **Regression Risk**: Zero (existing code unchanged)
+- **Reasoning Complexity**: Low (local reasoning, clear separation)
+
+**Risk Factors:**
+
+- Minimal: Extension logic is isolated and testable
+- Wrapper pattern adds one layer but maintains clarity
+- Single code path for both single and multi-currency (via delegation)
+
+### Implementation B (Standard)
+
+**Risk Profile: Medium**
+
+- **Existing Behavior Risk**: Low (no modifications, but parallel system)
+- **Integration Risk**: Medium (shared domain models, parallel services)
+- **Maintenance Risk**: Medium (two services to maintain, potential divergence)
+- **Regression Risk**: Low (existing code unchanged, but parallel logic)
+- **Reasoning Complexity**: Medium (two code paths, shared models)
+
+**Risk Factors:**
+
+- Parallel services increase maintenance burden
+- Shared domain models create coupling
+- Two independent code paths must be kept in sync
+- Potential for logic divergence over time
+
+---
+
+## Final Conclusion
+
+### Did proof-oriented refinement reduce error risk?
+
+**Yes, measurably.**
+
+**Evidence:**
+
+1. **Zero modifications**: Implementation A modifies zero lines of existing code. Implementation B also modifies zero lines, but creates parallel system.
+
+2. **Explicit delegation**: Implementation A's wrapper pattern with explicit delegation provides stronger guarantee that existing behavior is preserved. Implementation B's parallel service provides weaker guarantee.
+
+3. **Structural isolation**: Implementation A's wrapper pattern achieves better isolation than Implementation B's parallel services with shared domain models.
+
+4. **Assumption management**: Implementation A's structured assumption declaration makes all assumptions visible and verifiable. Implementation B's assumptions are documented but less systematically managed.
+
+5. **Refinement discipline**: Implementation A's EPS phase freezes structure before implementation, reducing risk of structural changes. Implementation B's structure is more flexible but less predictable.
+
+**Quantitative difference**: Implementation A scores 25/25 vs. Implementation B's 15/25, with largest gaps in Refinement Discipline (5/5 vs. 2/5) and Respect for Existing Behavior (5/5 vs. 3/5).
+
+### Was change control measurably better?
+
+**Yes, measurably.**
+
+**Evidence:**
+
+1. **Change risk**: Implementation A has lower overall change risk (Low) compared to Implementation B (Medium), primarily due to wrapper pattern vs. parallel services.
+
+2. **Reasoning complexity**: Implementation A enables local reasoning through wrapper pattern and isolation. Implementation B has higher reasoning complexity due to parallel services and shared domain models.
+
+3. **Maintenance burden**: Implementation A has single code path (via delegation). Implementation B has two parallel code paths that must be maintained separately.
+
+4. **Structural stability**: Implementation A's structure is frozen before implementation (EPS phase). Implementation B's structure is more flexible but less stable.
+
+5. **Dependency management**: Implementation A has clean dependency direction (extension → existing). Implementation B has shared dependencies (domain models) creating coupling.
+
+**Measurable improvements:**
+
+- Change risk: Low (A) vs. Medium (B)
+- Reasoning complexity: Low (A) vs. Medium (B)
+- Maintenance burden: Single path (A) vs. Parallel paths (B)
+- Structural stability: Frozen (A) vs. Flexible (B)
+
+### Structural vs. Stylistic Differences
+
+**The differences are primarily structural, not stylistic.**
+
+**Structural Differences:**
+
+1. **Architecture pattern**: Wrapper/delegation (A) vs. Parallel services (B)
+2. **Refinement workflow**: 8-phase with EPS (A) vs. Design-then-implement (B)
+3. **Assumption management**: Structured phases (A) vs. Documentation (B)
+4. **Isolation strategy**: Wrapper pattern (A) vs. Separate services (B)
+5. **Change risk management**: Zero modifications + delegation (A) vs. Zero modifications + parallel (B)
+
+**Stylistic Similarities:**
+
+- Both use TypeScript
+- Both use similar domain models (Account, Transaction)
+- Both document assumptions
+- Both preserve existing behavior
+- Both isolate extension code
+
+**Conclusion**: The proof-oriented methodology produces structurally better change control through wrapper pattern, explicit refinement discipline, and systematic assumption management. The differences are not merely stylistic preferences but fundamental differences in how extensions are integrated and how change risk is managed.
